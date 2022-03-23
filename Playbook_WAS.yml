@@ -1,0 +1,89 @@
+# vi ~/Playbook_WAS.yml
+—
+#1)  php httpd 패키지 설치 및 실행
+- hosts: WAS   
+  gather_facts: no
+  tasks:
+   - name: Httpd Package Install
+     yum: name: httpd, php, php-mysql, php-pdo, php-mbstring, php-gd
+     state: present
+   - name: Start the service
+     systemd:
+      name: httpd
+      state: started
+      enabled: yes
+#2) 아파치 웹 서버 메인 설정파일 수정
+   - name: Httpd Setting File1
+     lineinfile:
+      dest: /etc/httpd/conf/httpd.conf
+      regexp: '#ServerName'
+      line: 'ServerName kgmarket.net'
+
+   - name: Httpd Setting File2_1
+     lineinfile:
+      dest: /etc/httpd/conf/httpd.conf
+      regexp: 'access_log" combined'
+      line: ' CustomLog "logs/access_log" combined env=!Health-Check'
+
+   - name: Httpd Setting File2_2
+     lineinfile:
+      dest: /etc/httpd/conf/httpd.conf
+      regexp: 'combined$'
+      line: ' LogFormat "%{x-forwarded-for}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined'
+
+   - name: Httpd Setting File2_3
+     lineinfile:
+      dest: /etc/httpd/conf/httpd.conf
+      insertafter: '<IfModule log_config_module>'
+      line: ' SetEnvIf Request_Method HEAD Health-Check'
+
+   - name: Httpd Setting File3
+     lineinfile:
+      dest: /etc/httpd/conf/httpd.conf
+      insertafter: 'Listen 80'
+      line: 'Listen 443'
+
+   - name: Httpd Setting File4
+     lineinfile:
+      dest: /etc/httpd/conf/httpd.conf
+      regexp: 'User apache'
+      line: 'User nobody'
+
+   - name: Httpd Setting File5
+     lineinfile:
+      dest: /etc/httpd/conf/httpd.conf
+      insertafter: 'IncludeOptional conf.d/*.conf'
+      line: '<Location />'
+
+   - name: Httpd Setting File6
+     lineinfile:
+      dest: /etc/httpd/conf/httpd.conf
+      insertafter: '<Locaion />'
+      line: ' AllowMethods GET POST'
+
+   - name: Httpd Setting File8
+     lineinfile:
+      dest: /etc/httpd/conf/httpd.conf
+      insertafter: 'AllowMethods GET POST'
+      line: '</Location>'
+
+   - name: Httpd Setting File7
+     lineinfile:
+      dest: /etc/httpd/conf/httpd.conf
+      insertafter: '</Location>'
+      line: 'TraceEnable Off'
+#3) 방화벽 규칙 정의 
+   - name: Firewalld Policy ADD
+     ansible.posix.firewalld:
+      service: http
+      permanent: yes
+      state: enabled
+   - name: Firewalld Policy ADD
+     ansible.posix.firewalld:
+      service: https
+      permanent: yes
+      state: enabled
+   - name: Firewall Reload
+     shell: firewall-cmd --reload
+   - name: Service Restarted
+     service: name=httpd state=restarted

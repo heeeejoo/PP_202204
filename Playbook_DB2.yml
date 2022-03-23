@@ -1,0 +1,53 @@
+#vi ~/Playbook_DB2.yml
+—
+#1)
+- hosts: DB
+  gather_facts: no
+  tasks:
+  - name: Create Database "webdb"
+    mysql_db:
+     login_user: root
+     login_password: "1"
+     name: webdb
+     state: present
+#2)
+  - name: Create database user with name 'itbank' with all database privileges
+    mysql_user:
+     login_user: root
+     login_password: "1"
+     name: itbank
+     password: itbank
+     priv: 'webdb.*:ALL'
+     host: "%"
+     state: present
+  - name: Create database user with name 'Rep_user' with all database privileges
+    mysql_user:
+     login_user: root
+     login_password: "1"
+     name: Rep_user
+     password: itbank
+     priv: '*.*:REPLICATION SLAVE'
+     host: "%"
+     state: present
+#3)
+  - name: Create MEMBER Table
+    community.mysql.mysql_query:
+     login_user: root
+     login_password: "1"
+     login_db: webdb
+     query:
+      create table member(No int auto_increment primary key, ID varchar(50) not null, PW varchar(100) not null, Name varchar(50) not null, phone varchar(50) not null, addr varchar(50) not null, Mail varchar(50) not null);
+  - name: Create BOARD Table
+    community.mysql.mysql_query:
+     login_user: root
+     login_password: "1"
+     login_db: webdb
+     query:
+      create table board(No int auto_increment primary key, Title varchar(50) not null, Content varchar(500) not null, Userid varchar(50) not null, Date varchar(50) not null);
+  - name: Create BASKET Table
+    community.mysql.mysql_query:
+     login_user: root
+     login_password: "1"
+     login_db: webdb
+     query:
+      create table basket(ID varchar(50), NAME varchar(50), ADDR varchar(50), PRODUCT varchar(50), PRICE int(50), PURCHASE int(2) DEFAULT '0', CNT int(100), NO int(11) NOT NULL auto_increment primary key);

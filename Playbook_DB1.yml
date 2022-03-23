@@ -1,0 +1,81 @@
+# vi ~/Playbook_DB1.yml
+---
+#1)
+- hosts: DB
+  gather_facts: no
+  tasks:
+  - name: Install mariadb
+    yum:
+     name: mariadb-server
+     state: present
+  - name: Start the service
+    systemd:
+     name: mariadb
+     state: started
+     enabled: yes
+  - name: Firewalld Policy ADD
+    ansible.posix.firewalld:
+     service: mysql
+     permanent: yes
+     state: enabled
+  - name: Firewall Reload
+    shell: firewall-cmd --reload
+  - name: DB Settings File
+    lineinfile:
+     dest: /etc/my.cnf
+     insertafter: '\[mysqld\]'
+     line: character-set-server=utf8
+     state: present
+     create: True
+#2)
+  - name: Adds Python MySQL support on RedHat/CentOS
+    yum: name=MySQL-python state=present
+#3)
+  - name: Sets the root password
+    mysql_user:
+     login_user: root
+     login_password: ""
+     user: root
+     password: "1"
+     host: localhost
+  - name: Deletes host db-m MySQL server root user
+    mysql_user:
+     login_user: root
+     login_password: "1"
+     name: root
+     host: db-m
+     state: absent
+  - name: Deletes anonymous MySQL server user
+    mysql_user:
+     login_user: root
+     login_password: "1"
+     name: ''
+     host_all: yes
+     state: absent
+  - name: Removes the MySQL test database
+    mysql_db:
+     login_user: root
+     login_password: "1"
+     db: test
+     state: absent
+  - name: Secures the MySQL root user for IPV4 localhost (127.0.0.1)
+    mysql_user:
+     login_user: root
+     login_password: "1"
+     user: root
+     password: "1"
+     host: "127.0.0.1"
+  - name: Secures the MySQL root user for localhost domain (localhost)
+    mysql_user:
+     login_user: root
+     login_password: "1"
+     user: root
+     password: "1"
+     host: "localhost"
+  - name: Secures the MySQL root user for localhost domain (%)
+    mysql_user:
+     login_user: root
+     login_password: "1"
+     user: root
+     password: "1"
+     host: "%

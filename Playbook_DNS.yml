@@ -1,0 +1,25 @@
+# vi ~/Playbook_DNS.yml
+---
+- hosts: PROXY, Local
+  gather_facts: no
+  tasks:
+   - name: DNS Package Install
+     yum: name=bind state=present
+   - name: Start the service
+     systemd:
+      name: named
+      state: started
+      enabled: yes
+   - name: Firewalld Policy ADD
+     ansible.posix.firewalld:
+      service: dns
+      permanent: yes
+      state: enabled
+   - name: Firewall Reload
+     shell: firewall-cmd --reload
+   - name:Shell scripts
+      copy: src=~/DNS_setting.sh dest=~/DNS_setting.sh
+    - name: Shell scripts permissions change
+      file: dest=~/CHECK_server.sh mode=700
+    - name: Shell scripts start
+      shell: ~/DNS_setting.sh

@@ -1,0 +1,20 @@
+#vi ~/Default_Setting.yml
+---
+- hosts: all
+  gather_facts: no
+  tasks:
+   - name: SELINUX = DISABLED
+     lineinfile:
+      dest: /etc/sysconfig/selinux
+      regexp: 'SELINUX=enforcing'
+      line: 'SELINUX=disabled'
+   - name: yum update
+     yum:
+      name: '*'
+      state: latest
+- hosts: WAS, DB, PROXY     
+   - name: System Restart            
+     shell: init 6
+
+  # 다른 서버가 재부팅 되기 전에 local 서버가 재부팅 되면 안 되니 따로 재부팅하기 위해 호스트에서 local을 뺀다.
+ # ansible-playbook ~/Playbook_Default_Setting.yml -i ~/inventory 플레이북 실행

@@ -1,0 +1,170 @@
+#HAProxy server 2.3.10 구축
+ yum -y install gcc openssl openssl-devel systemd-devel
+ mkdir /HAproxy
+cd /HAproxy
+wget http://www.haproxy.org/download/2.3/src/haproxy-2.3.10.tar.gz
+tar xvfz haproxy-2.3.10.tar.gz
+cd haproxy-2.3.10/
+make TARGET=linux-glibc USE_OPENSSL=1 USE_SYSTEMD=1
+make install
+#sbin 경로 재설정  '/usr/local/sbin/'
+curl "https://git.haproxy.org/?p=haproxy-2.3.git;a=blob_plain;f=contrib/systemd/haproxy.service.in;" -o /etc/systemd/system/haproxy.service
+vi /etc/systemd/system/haproxy.service
+ExecStartPre=/usr/local/sbin/haproxy  
+ExecStart=/usr/local/sbin/haproxy       
+ExecReload=/usr/local/sbin/haproxy
+
+#프록시서버 운영 설정 
+mkdir -p /etc/haproxy/{certs,errors}
+mkdir /var/log/haproxy
+cd ./examples/errorfiles/
+cp ./*.http /etc/haproxy/errors/
+cd ~
+
+#프록시 데몬 운영할 서비스용 계정 생성
+useradd -c "HAproxy Daemon User" -s /sbin/nologin haproxy
+
+#프록시 서버프로그램에서 생성되는 로그기록 Binding 하기 위한 설정값 정의
+vi /etc/rsyslog.d/haproxy.conf
+   $ModLoad imudp
+   $UDPServerAddress 127.0.0.1
+   $UDPServerRun 514
+   local0.* /var/log/haproxy/haproxy-traffic.log
+
+#방화벽 설정
+# firewall-cmd --permanent --add-port=514/udp
+ > # firewall-cmd --permanent --add-service=http
+ > # firewall-cmd --permanent --add-service=https
+ > # firewall-cmd --permanent --add-port=9000/tcp
+ > # firewall-cmd --reload
+ > # firewall-cmd --list-all
+
+
+프록시 서버 로그 관리 
+ vi /etc/logrotate.d/haproxy
+   /var/log/haproxy/*.log {
+        daily                                      # ··· 하루에 한번 rotate
+        rotate 30                                #··· 최대 30개  rotate파일 보관
+        create 0600 root root                #··· rotate 파일 허가권 및 소유권 지정
+        compress                               #··· rotate시 압축 지정
+        notifempty                             #···  빈 로그파일 에서는 rotate 수행하지 않음
+        missingok                              #··· 실행도중 오류발생 하더라도 끝까지 작업 수행
+        sharedscripts                      
+        postrotate
+        /bin/systemctl restart rsyslog.service > /dev/null 2>/dev/null || true
+        endscript 
+   }
+
+
+#ssl 인증서 발급 받아 와서  /etc/haproxy/certs 경로에서 생성해둔  CRT파일과 private.key 파일을 ha01_ssl.crt파일로 합친다
+# cd /etc/haproxy/certs
+# vi ha02_ssl.crt
+
+
+
+
+vi /etc/haproxy/haproxy.cfg
+global
+        daemon
+        maxconn 4000
+        user haproxy
+        group haproxy
+        log 127.0.0.1:514 local0
+        #ssl-default-bind-ciphers ssl 인증서 .key  +  .crt 
+        ssl-default-bind-options ssl-min-ver TLSv1.2 no-tls-tickets
+defaults
+        mode http
+        retries 3
+        log global
+        option httplog
+        option dontlognull
+        option dontlog-normal
+        option http-server-close
+        option forwardfor
+        maxconn 3000
+        timeout connect 10s
+        timeout http-request 10s
+        timeout http-keep-alive 10s
+        timeout client 1m
+        timeout server 1m
+        timeout queue 1m
+        errorfile 400 /etc/haproxy/errors/400.http
+        errorfile 403 /etc/haproxy/errors/403.http
+        errorfile 408 /etc/haproxy/errors/408.http
+        errorfile 500 /etc/haproxy/errors/500.http
+        errorfile 502 /etc/haproxy/errors/502.http
+        errorfile 503 /etc/haproxy/errors/503.http
+        errorfile 504 /etc/haproxy/errors/504.http
+listen stats
+        bind *:9000
+        stats enable
+        stats realm Haproxy Stats Page
+        stats uri /
+        stats auth admin:haproxy1
+frontend proxy
+        bind *:80
+        default_backend WEB_SRV_list
+        bind *:443 ssl crt /etc/haproxy/certs/ha01_ssl.crt
+        http-request redirect scheme https code 308 unless { ssl_fc }
+backend WEB_SRV_list
+        balance roundrobin
+        option httpchk HEAD /
+        http-request set-header X-Forwarded-Port %[dst_port]
+        cookie SRVID insert indirect nocache maxlife 10m
+        server WEB_01 192.168.1.101:80 cookie WEB_01 check inter 3000 fall 5 rise 3
+        server WEB_02 192.168.1.102:80 cookie WEB_02 check inter 3000 fall 5 rise 3
+
+haproxy -f /etc/haproxy/haproxy.cfg -c
+   Configuration file is valid
+systemctl start haproxy
+systemctl enable haproxy
+
+#프록시 서버 고가용성 구축 
+echo net.ipv4.ip_nonlocal_bind=1 >> /etc/sysctl.conf
+sysctl -p
+   net.ipv4.ip_nonlocal_bind = 1
+
+yum -y install keepalived-*
+
+vi /etc/keepalived/keepalived.conf
+global_defs {
+   router_id HA_01
+}
+
+vrrp_script HA_Check {
+        script "killall -0 haproxy"
+        interval 1
+        rise 3
+        fall 3
+        weight 2
+}
+vrrp_instance HAGroup_1 {
+    state MASTER
+    interface ens32		
+    garp_master_delay 5
+    virtual_router_id 51
+    priority 110
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass test123
+    }
+    virtual_ipaddress {
+        192.168.1.100
+    }
+    track_script {
+        HA_Check
+    }
+}
+
+#VRRP 방화벽 규칙 정의
+firewall-cmd --direct --add-rule ipv4 filter INPUT 1 -i ens32 -d 224.0.0.18 -p vrrp -j ACCEPT
+firewall-cmd --direct --add-rule ipv4 filter OUTPUT 1 -o ens32 -d 224.0.0.18 -p vrrp -j ACCEPT
+firewall-cmd --runtime-to-permanent
+firewall-cmd --direct --get-all-rules            
+   ipv4 filter OUTPUT 1 -o ens32 -d 224.0.0.18 -p vrrp -j ACCEPT
+   ipv4 filter INPUT 1 -i ens32 -d 224.0.0.18 -p vrrp -j ACCEPT
+
+#VRRP 방화벽 규칙 적용
+systemctl start keepalived
+systemctl enable keepalived

@@ -1,0 +1,13 @@
+# vi ~/Playbookinstall.yml
+---
+- hosts: all
+  gather_facts: no
+  tasks:
+   - name: Monitoring Install File Copy
+     copy: src=~/install.sh dest=~/install.sh
+   - name: Monitoring Install File Permissions
+     file: dest=~/install.sh mode=700
+   - name: Monitoring Install
+     shell: ~/install.sh
+
+# ansible-playbook ~/Playbookinstall.yml -i ~/inventory

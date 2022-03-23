@@ -1,0 +1,17 @@
+# vi ~/Sec_Check.yml
+---
+- hosts: all
+  gather_facts: no
+  tasks:
+  - name: Make Directory
+    shell: mkdir -p /Sec_Check/WARN
+
+  - name: Script File Copy
+    copy: src=~/Sec_Check.sh dest=~/Sec_Check.sh
+  - name: Script File Permissions
+    file: dest=~/Sec_Check.sh mode=700
+  - name: Script File Execution
+    shell: ~/Sec_Check.sh
+
+#실행 결과 확인
+# vi ~/Sec_Check.sh

@@ -1,0 +1,46 @@
+# vi ~/Playbook_DB3.yml
+---
+#1)
+- hosts: DB
+  gather_facts: no
+  tasks:
+  - name: DB Settings File1
+    lineinfile:
+     dest: /etc/my.cnf
+     insertafter: 'character-set-server=utf8'
+     line: log-bin=mysql-bin
+     state: present
+     create: True
+  - name: ReStart the service
+    systemd:
+     name: mariadb
+     state: restarted
+     enabled: yes
+#2)
+- hosts: local
+  gather_facts: no
+  tasks:
+  - name: DB Setting File Setting
+    shell: ~/set3.sh
+  - name: DB Setting File Setting
+    shell: ~/set1.sh
+- hosts: DB
+  gather_facts: no
+  tasks:
+  - name: DB Settings File Copy
+    copy: src=~/set2.sh dest=~/set2.sh
+  - name: Change Script File Permissions
+    file: dest=~/set2.sh mode=700
+  - name: DB Settings File2
+    shell: ~/set2.sh
+- hosts: local
+  gather_facts: no
+  tasks:
+  - name: DB Setting File3
+    shell: ~/set3.sh
+
+
+#플레이북 실행
+# ansible-playbook ~/Playbook_DB1.yml -i ~/inventory
+# ansible-playbook ~/Playbook_DB2.yml -i ~/inventory
+# ansible-playbook ~/Playbook_DB3.yml -i ~/inventory
