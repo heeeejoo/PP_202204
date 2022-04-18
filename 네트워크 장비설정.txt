@@ -1,0 +1,263 @@
+2.3.1) DMZ
+1) 기본설정
+DMZ#configure terminal
+DMZ#hostname DMZ
+DMZ(config)#enable secret kgm123
+DMZ(config)#no ip domain lookup
+DMZ(config)#username admin privilege 15 secret kgm123
+DMZ(config)#line console 0
+DMZ(config-line)#logging local
+DMZ(config-line)#logging synchronous
+DMZ(config-line)#exec-timeout 3 0
+DMZ(config-line)#password kgm123
+DMZ(config-line)#login
+DMZ(config-line)#exit
+DMZ(config)#int range ethernet 0/0 - 6, ethernet 1/0 - 3, ethernet 2/0 - 3, ethernet 3/0 - 3
+DMZ(config-if-range)#shutdown
+DMZ(config-if-range)#exit
+
+2) VLAN설정
+DMZ(config)#vlan 10
+DMZ(config-vlan)#name DMZ
+DMZ(config-vlan)#exit
+
+DMZ(config)#vlan 20
+DMZ(config-vlan)#name DTC
+DMZ(config-vlan)#exit
+
+3) Interface설정 
+- CE  Connection 설정
+DMZ(config)#interface ethernet 1/0
+DMZ(config-if)#description ##CE_Router_connection##
+DMZ(config-if)#no switchport
+DMZ(config-if)#duplex full
+DMZ(config-if)#ip address 192.168.100.2  255.255.255.252
+DMZ(config-if)#no shutdown
+DMZ(config-if)#exit
+DMZ(config)#no ip cef 
+
+- Proxy_M Connection 설정
+DMZ(config)#interface ethernet 0/0  
+DMZ(config-if)#description #Proxy_M_connection##
+DMZ(config-if)#no switchport
+DMZ(config-if)#ip address 192.168.100.11  255.255.255.252  
+DMZ(config-if)#no shutdown
+DMZ(config-if)#exit
+
+- Proxy_S Connection 설정
+DMZ(config)#interface ethernet 0/4
+DMZ(config-if)#description ##Proxy_S_connection##
+DMZ(config-if)#no switchport
+DMZ(config-if)#ip address 192.168.100.12  255.255.255.252
+DMZ(config-if)#no shutdown
+DMZ(config-if)#exit
+
+- WAS1 Connection 설정
+DMZ(config)#interface ethernet 0/2
+DMZ(config-if)#description ##WAS1_connection##
+DMZ(config-if)#no switchport
+DMZ(config-if)#ip address 192.168.100.13 255.255.255.252
+DMZ(config-if)#no shutdown
+DMZ(config-if)#exit
+
+- WAS2 Connection 설정
+DMZ(config)#interface ethernet 0/6
+DMZ(config-if)#description ##WAS2_connection##
+DMZ(config-if)#no switchport
+DMZ(config-if)#ip address 192.168.100.14 255.255.255.252
+DMZ(config-if)#no shutdown
+DMZ(config-if)#exit
+
+5) Inter-VLAN SVI설정 및 VRRP    
+DMZ(config)#track 1 interface ethernet 1/0 line-protocol
+DMZ(config-track)#exit
+
+DMZ(config)#interface vlan 10
+DMZ(config-if)#description ##Vlan10_GW##
+DMZ(config-if)#ip add 192.168.10.252 255.255.255.0
+DMZ(config-if)#vrrp 10 ip 192.168.10.254
+DMZ(config-if)#no sh
+DMZ(config-if)#exit
+
+DMZ(config-if)#int vlan 20
+DMZ(config-if)#description ##Vlan20_GW##
+DMZ(config-if)#ip address 192.168.20.252 255.255.255.0
+DMZ(config-if)#vrrp 20 ip 192.168.20.254
+DMZ(config-if)#vrrp 20 priority 110
+DMZ(config-if)#vrrp 20 track 1 decrement 50
+DMZ(config-if)#vrrp 20 preempt delay minimum 30
+DMZ(config-if)#no sh
+DMZ(config-if)#exit
+
+6) RSTP 및 VLAN우선 순위 조정
+VLAN 20은 DMZ을 Root Bridge, 우선사용 지정. 
+DMZ(config)#spanning-tree mode rapid-pvst
+DMZ(config)#spanning-tree vlan  20 priority 4096
+
+7) Routing RIP 설정
+DMZ(config)#router rip
+DMZ(config-router)#version 2
+DMZ(config-router)#no auto-summary
+DMZ(config-router)#network 192.168.0.0
+DMZ(config-router)#exit
+DMZ(config)#no ip cef
+DMZ(config)#exit
+DMZ#copy running-config startup-config
+
+
+2.3.2) DTC
+1) 기본설정
+DTC#configure terminal
+DTC#hostname DTC
+DTC(config)#enable secret kgm123
+DTC(config)#no ip domain lookup
+DTC(config)#username admin privilege 15 secret kgm123
+DTC(config)#line console 0
+DTC(config-line)#logging local
+DTC(config-line)#logging synchronous
+DTC(config-line)#exec-timeout 3 0
+DTC(config-line)#password kgm123
+DTC(config-line)#login
+DTC(config-line)#exit
+DTC(config)#int range ethernet 0/0 - 3, ethernet 1/0 - 3, ethernet 2/0 - 3, ethernet 3/0 - 3
+DTC(config-if-range)#shutdown
+DTC(config-if-range)#exit
+
+
+2) VLAN설정
+DTC(config)#vlan 10
+DTC(config-vlan)#name DMZ
+DTC(config-vlan)#exit
+
+DTC(config)#vlan 20
+DTC(config-vlan)#name DTC
+DTC(config-vlan)#exit
+
+3) Interface설정 
+- CE  Connection 설정
+DTC(config)#interface ethernet 0/1
+DTC(config-if)#description ##CE_Router_connection##
+DTC(config-if)#no switchport
+DTC(config-if)#duplex full
+DTC(config-if)#ip address 192.168.10.6  255.255.255.252 
+DTC(config-if)#no shutdown
+DTC(config-if)#exit
+DTC(config)#no ip cef 
+
+- DB_M Connection 설정
+DTC(config)#interface ethernet 0/0
+DTC(config-if)#description ##DB_M_connection##
+DTC(config-if)#no switchport
+DTC(config-if)#ip address 192.168.100.26 255.255.255.252   
+DTC(config-if)#no shutdown
+DTC(config-if)#exit
+
+- DB_S Connection 설정
+DTC(config)#interface ethernet 0/2
+DTC(config-if)#description ##DB_S_connection##
+DTC(config-if)#no switchport
+DTC(config-if)#ip address 192.168.100.27 255.255.255.252
+DTC(config-if)#no shutdown
+DTC(config-if)#exit
+
+5) Inter-VLAN SVI설정 및 VRRP    
+DTC(config)#no int vlan 10 
+DTC(config)#no int vlan 20
+
+DTC(config)#track 1 interface ethernet 0/1 line-protocol
+DTC(config-track)#exit
+
+DTC(config)#interface vlan 10
+DTC(config-if)#description ##Vlan10_GW##
+DTC(config-if)#ip add 192.168.10.253 255.255.255.0
+DTC(config-if)#vrrp 10 ip 192.168.10.254
+DTC(config-if)#vrrp 10 priority 110
+DTC(config-if)#vrrp 10 track 1 decrement 50
+DTC(config-if)#vrrp 10 preempt delay minimum 30
+DTC(config-if)#no sh
+DTC(config-if)#exit
+
+DTC(config-if)#int vlan 20
+DTC(config-if)#description ##Vlan20_GW##
+DTC(config-if)#ip address 192.168.20.253 255.255.255.0
+DTC(config-if)#vrrp 20 ip 192.168.20.254
+DTC(config-if)#no sh
+DTC(config-if)#exit
+
+6) RSTP 및 VLAN우선 순위 조정
+VLAN 10 은 DTC을 Root Bridge, 우선사용 지정. 
+DTC(config)#spanning-tree mode rapid-pvst
+DTC(config)#spanning-tree vlan  10 priority 4096
+
+7) Routing RIP 설정
+DTC(config)#router rip
+DTC(config-router)#version 2
+DTC(config-router)#no auto-summary
+DTC(config-router)#network 192.168.0.0
+DTC(config-router)#exit
+DTC(config)#no ip cef
+DTC(config)#exit
+DTC#copy running-config startup-config
+
+2.3.3) CE Router
+1) 기본 설정
+CE#configure terminal
+CE(config)#enable secret kgm123
+CE(config)#no ip domain lookup
+CE(config)#username admin privilege 15 secret kgm123
+CE(config)#line console 0
+CE(config-line)#logging local
+CE(config-line)#logging sychronous
+CE(config-line)#exec-timeout 3 0
+CE(config-line)#password kgm123
+CE(config-line)#logging
+CE(config-line)#exit
+
+2) 인터페이스 설정
+- DMZ Connection 설정
+CE(config)#interface fastethernet 0/0
+CE(config-if)#desc ##DMZ_connection##
+CE(config-if)#ip address 192.168.100.1 255.255.255.252
+CE(config-if)#duplex full
+CE(config-if)#no shutdown
+CE(config-if)#exit
+
+- DTC Connection 설정
+CE(config-if)#interface fastethernet 0/1
+CE(config-if)#description ##DTC_connection##
+CE(config-if)#ip address 192.168.100.5 255.255.255.252
+CE(config-if)#duplex full
+CE(config-if)#no shutdown
+CE(config-if)#exit
+
+- ISP Connection 설정
+CE(config-if)#interface fastethernet 1/0
+CE(config-if)#description ##ISP_connection##
+CE(config-if)#ip address dhcp
+CE(config-if)#no shutdown
+CE(config-if)#exit
+
+- Routing Rip
+CE(config)#router rip
+CE(config-router)#version 2
+CE(config-router)#no auto-summary
+CE(config-router)#network 192.168.0.0
+CE(config-router)#default-information originate
+CE(config-router)#end
+2.3.4) NAT 및 ACL 접근제어 설정
+CE(config)#ip nat pool PUBLIC_IP 192.168.1.10  192.168.1.120 netmask 255.255.255.0
+
+CE(config)#acc-list 10 permit 192.168.10.0 0.0.0.255
+CE(config)#acc-list 10 permit 192.168.20.0 0.0.0.255
+CE(config)#acc-list 10 permit 192.168.0.0 0.0.0.255
+
+- outside 설정 
+CE(config)#ip nat inside source list 10 interface fastethernet  1/0 overload
+CE(config)#interface fastethernet  1/0
+CE(config)#ip nat outside
+CE(config)#exit
+
+- inside 설정
+CE(config)#interface range fastethernet 0/0 - 1
+CE(config)#ip nat inside
+CE(config)#exit
